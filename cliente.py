@@ -21,17 +21,30 @@ class Frame:
         self.flags = flags
         self.data = data
 
-
 inputMsg = input("❗ Digite uma mensagem: ")
+print("inputMsg:", inputMsg)
+print("type(inputMsg):", type(inputMsg))
 
 # Criando uma classe do tipo Frame e instaciando suas variaveis
 frame = Frame(0xDCC023C2, 0xDCC023C2, len(inputMsg),
               0, 0, 0, inputMsg.encode("UTF-8"))
-# Comentário de teste
+print("frame.data:", frame.data)
+print("type(frame.data):", type(frame.data))
+
+# longString = frame.sync1 + frame.sync2 + frame.length + frame.checksum + frame._id + frame.flags + frame.data
+# print("longString:", longString)
+# print("type(longString):", type(longString))
+
 # Empacotando a mensagem de acordo com o tamanho de cada quadro
-packedMsg = struct.pack("!IIHHBBs", frame.sync1, frame.sync2,
-                        frame.length, frame.checksum, frame._id, frame.flags, frame.data)
+packedMsg = struct.pack("!IIHHBBI", frame.sync1, frame.sync2,
+                        frame.length, frame.checksum, frame._id, frame.flags, int.from_bytes(frame.data, "big"))
+
+for i in packedMsg:
+    print(i, " - ", type(i))
+
 print("⚙ [Mensagem empacotada]:", packedMsg)
+print(packedMsg[6])
+print(type(packedMsg[6]))
 
 # Codificando o enquadramento para base16
 codedPack = base64.b16encode(packedMsg)

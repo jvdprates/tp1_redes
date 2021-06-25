@@ -1,5 +1,6 @@
 import socket
 import base64
+import struct
 
 HOST = 'localhost'
 PORT = 50000
@@ -16,16 +17,30 @@ print("✅ Conectado em", address)
 
 while True:
     data = connection.recv(1024)
+    print("📩 [Mensagem recebida]:", data)
     if not data:
         print("Dados recebidos, fechando a conexão... 😴")
         connection.close()
         break
-    print("📩 [Mensagem recebida]:", data.decode('UTF-8'))
 
     # Decodificando a mensagem em base16
-    data = base64.b16decode(data)
-    print("⚙ [Mensagem decodificada]:", data)
+    decodedData = base64.b16decode(data)
+    print("⚙ [Mensagem decodificada]:", decodedData)
 
-    # Ecoando a mensagem decodificada para o cliente
-    print("📩 Ecoando para o cliente...")
-    connection.sendall(data)
+    # Unpack para regerar o tuple
+    tupleMsg = struct.unpack("!IIHHBBp", decodedData)
+    print("⚙ [Mensagem desempacotada]:", tupleMsg[0])
+
+    for i in tupleMsg:
+        print(i, " - ", type(i))
+
+    # Verificar os bytes de sincronização
+    if not (hex(tupleMsg[0]) == 0xdcc023c2):
+        print(hex(tupleMsg[0]))
+        print("Primeiro campo inválido")
+        connection.close()
+        break
+
+    # # Ecoando a mensagem decodificada para o cliente
+    # print("📩 Ecoando para o cliente...")
+    # connection.sendall(unpackedMsg)
