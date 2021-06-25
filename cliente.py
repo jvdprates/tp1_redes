@@ -27,7 +27,7 @@ inputMsg = input("❗ Digite uma mensagem: ")
 # Criando uma classe do tipo Frame e instaciando suas variaveis
 frame = Frame(0xDCC023C2, 0xDCC023C2, len(inputMsg),
               0, 0, 0, inputMsg.encode("UTF-8"))
-
+# Comentário de teste
 # Empacotando a mensagem de acordo com o tamanho de cada quadro
 packedMsg = struct.pack("!IIHHBBs", frame.sync1, frame.sync2,
                         frame.length, frame.checksum, frame._id, frame.flags, frame.data)
