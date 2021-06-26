@@ -28,8 +28,8 @@ while True:
     print("⚙ [Mensagem decodificada]:", decodedData)
 
     # Unpack para regerar o tuple
-    tupleMsg = struct.unpack("!IIHHBBp", decodedData)
-    print("⚙ [Mensagem desempacotada]:", tupleMsg[0])
+    tupleMsg = struct.unpack("!2I2H2B10s", decodedData)
+    print("⚙ [Mensagem desempacotada]:", tupleMsg)
 
     for i in tupleMsg:
         print(i, " - ", type(i))

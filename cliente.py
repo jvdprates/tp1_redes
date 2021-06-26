@@ -36,15 +36,12 @@ print("type(frame.data):", type(frame.data))
 # print("type(longString):", type(longString))
 
 # Empacotando a mensagem de acordo com o tamanho de cada quadro
-packedMsg = struct.pack("!IIHHBBI", frame.sync1, frame.sync2,
-                        frame.length, frame.checksum, frame._id, frame.flags, int.from_bytes(frame.data, "big"))
+packedMsg = struct.pack("!2I2H2B{}s".format(frame.length), frame.sync1, frame.sync2,
+                        frame.length, frame.checksum, frame._id, frame.flags, frame.data)
 
-for i in packedMsg:
-    print(i, " - ", type(i))
-
-print("⚙ [Mensagem empacotada]:", packedMsg)
-print(packedMsg[6])
-print(type(packedMsg[6]))
+# for i in packedMsg:
+#     print(i, " - ", type(i))
+# print("⚙ [Mensagem empacotada]:", packedMsg)
 
 # Codificando o enquadramento para base16
 codedPack = base64.b16encode(packedMsg)
