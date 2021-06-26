@@ -2,20 +2,16 @@ import socket
 import base64
 import struct
 import sys
+import utils
 
 HOST = '127.0.0.1'
 PORT = 50000
 
 SYNC_CODE = 0xDCC023C2
-
-def changeId(id):
-    if id == 0:
-        return 1
-    else:
-        return 0
+ACK_CODE = 7
+PACK_SIZE = 15
 
 print("❗ Programa iniciado!")
-
 skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 skt.connect((HOST, PORT))
 print('✅ Conectado com sucesso ao servidor!')
@@ -36,7 +32,7 @@ print("type(inputMsg):", type(inputMsg))
 
 # Criando uma classe do tipo Frame e instaciando suas variaveis
 frame = Frame(SYNC_CODE, SYNC_CODE, len(inputMsg),
-              0, 0, 0, inputMsg.encode("UTF-8"))
+              PACK_SIZE, 0, 0, inputMsg.encode("UTF-8"))
 
 print("frame.data:", frame.data)
 print("type(frame.data):", type(frame.data))
@@ -51,9 +47,10 @@ for byte in message:
     frame.length = sys.getsizeof(byte)
     print("frame.length", frame.length)
     packedMsg = struct.pack("!2I2H2Bs", frame.sync1, frame.sync2,
-                       frame.length, frame.checksum, frame._id, frame.flags, byte)
-    frame._id = changeId(frame._id)
+                            frame.length, frame.checksum, frame._id, frame.flags, byte)
     print("⚙ [Mensagem empacotada]:", packedMsg)
+
+    print("len(packedMsg)", len(packedMsg))
 
     # Codificando o enquadramento para base16
     codedPack = base64.b16encode(packedMsg)
@@ -63,7 +60,29 @@ for byte in message:
     skt.send(codedPack)
 
     # Recebendo um eco do servidor
-    data = skt.recv(1024)
-    print('💌 [Mensagem ecoada]:', data)
+    serverEcho = skt.recv(1024)
+    print('💌 [Mensagem ecoada]:', serverEcho)
 
-print('Operação realizada com sucesso, fechando programa... 😴')
+    # Decodificando eco do servidor
+    decodedServerEcho = base64.b16decode(serverEcho)
+    print('💌 [Eco decodificado]:', decodedServerEcho)
+
+    # Unpack do eco do servidor
+    tupleEcho = struct.unpack("!2I2H2Bs", decodedServerEcho)
+    print("⚙ [Eco desempacotado]:", tupleEcho)
+
+    # Validação de sincronização do eco do servidor
+    syncEchoValid = utils.validateSync(tupleEcho)
+    # Validação de confirmação de recebimento de pacote correto
+    echoIdValid = utils.validateEcho(frame._id, tupleEcho)
+    if syncEchoValid and echoIdValid:
+        # Muda o ID para o do próximo pacote
+        frame._id = utils.changeId(frame._id)
+    else:
+        if not syncEchoValid:
+            utils.messageClose(skt, "Erro de validação de sincronização")
+        if not echoIdValid:
+            utils.messageClose(skt, "Erro de confirmação do servidor")
+        break
+
+utils.messageClose(skt, "Operação realizada com sucesso")

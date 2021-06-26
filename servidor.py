@@ -1,14 +1,17 @@
 import socket
 import base64
 import struct
+import sys
+import utils
 
 HOST = 'localhost'
 PORT = 50000
 
 SYNC_CODE = 0xDCC023C2
+ACK_CODE = 7
+PACK_SIZE = 15
 
 print("❗ Programa iniciado!")
-
 skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 skt.bind((HOST, PORT))
 skt.listen()
@@ -17,22 +20,13 @@ print("❗ Aguardando conexão de um cliente...")
 connection, address = skt.accept()
 print("✅ Conectado em", address)
 
-def validateSync(decodedTuple):
-    sync1 = decodedTuple[0]
-    sync2 = decodedTuple[1]
-    print("Validação:", sync1, SYNC_CODE)
-
-    if sync1 == sync2 and sync1 == SYNC_CODE:
-        return True
-    else:
-        return False
-
+dataBuffer = bytearray()
 while True:
     data = connection.recv(1024)
     print("📩 [Mensagem recebida]:", data)
     if not data:
-        print("Dados recebidos, fechando a conexão... 😴")
-        connection.close()
+        utils.messageClose(connection, 'Nenhum dado a mais foi recebido')
+        print("Mensagem completa:", dataBuffer.decode("UTF-8"))
         break
 
     # Decodificando a mensagem em base16
@@ -43,21 +37,30 @@ while True:
     # Unpack para regerar o tuple
     tupleMsg = struct.unpack("!2I2H2Bs", decodedData)
     print("⚙ [Mensagem desempacotada]:", tupleMsg)
-
-    for i in tupleMsg:
-        print(i, " - ", type(i))
     
-    syncValidation = validateSync(tupleMsg)
-    if syncValidation:
+    syncValidation = utils.validateSync(tupleMsg)
+    checkSumValidation = utils.validateSum(tupleMsg, data)
+    if syncValidation and checkSumValidation:
+        # Preparando echo de confirmação de recebimento para ser enviado ao cliente
         packageId = tupleMsg[4]
         packageData = tupleMsg[6]
         
+        # Adiciona o dado recebido ao buffer
+        print("type(packageData)", type(packageData))
+        dataBuffer += packageData
+
         packedMsg = struct.pack("!2I2H2Bs", SYNC_CODE, SYNC_CODE,
-                       0, 0, packageId, 7, b'')        
+                       PACK_SIZE, 0, packageId, ACK_CODE, b'')        
+
+        # Codificando o retorno do cliente
+        codedPack = base64.b16encode(packedMsg) 
+
         # Ecoando a mensagem decodificada para o cliente
         print("📩 Ecoando para o cliente...")
-        connection.send(packedMsg)
+        connection.send(codedPack)
     else:
-        print("Erro de validação, fechando a conexão... 😴")
-        connection.close()
+        if not checkSumValidation:
+            utils.messageClose(connection, 'Erro de checksum')
+        if not syncValidation:
+            utils.messageClose(connection, 'Erro de validação de sincronização')
         break
