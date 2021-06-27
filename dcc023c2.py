@@ -3,25 +3,28 @@ import base64
 import struct
 import sys
 
+# Argumentos de chamada do programa
 ARGS = sys.argv
 
-if len(sys.argv) > 1:    
- PROGRAM = sys.argv[1]
+# Tratativa para a inexistência de argumentos de chamada
+if len(sys.argv) > 1:
+    PROGRAM = sys.argv[1]
 else:
- PROGRAM = 'null' 
+    PROGRAM = 'null'
 
-
+# Função que imprime o erro de chamada e explica a utilização correta
 def printInputError(program):
     if program == 1:
-        print("❗ Erro de chamada do servidor") 
-        print("[Modelo]:", "./dcc023c2 -s <port> <input> <output>")
+        print("❗ Erro de chamada do servidor")
+        print("[Uilização correta]:", "./dcc023c2 -s <port> <input_name> <output_name>")
     elif program == 2:
         print("❗ Erro de chamada do cliente")
-        print("[Modelo]:", "./dcc023c2 -c 127.0.0.1 <port> <input> <output>")
+        print("[Uilização correta]:", "./dcc023c2 -c 127.0.0.1 <port> <input_name> <output_name>")
     else:
-        print("❗ Erro de chamada genérico") 
-        print("[Modelo]:", "./dcc023c2 <-c/-s> ...")
+        print("❗ Erro de chamada genérico")
+        print("[Uilização correta]:", "./dcc023c2 <-c/-s> ...")
 
+# Tratativa para os argumentos de chamada do programa
 if (PROGRAM != '-c') and (PROGRAM != '-s'):
     printInputError(0)
     PROGRAM = 'null'
@@ -33,66 +36,61 @@ else:
     if len(ARGS) != 6:
         printInputError(2)
         PROGRAM = 'null'
-        
+
+# Codigo de sincronização
 SYNC_CODE = 0xDCC023C2
+# Tamanho de uma pack 
 PACK_SIZE = 15
+# Codigo de ACK de confirmação
 ACK_CODE = 7
 
+# Retorna o novo ID para o próximo pacote
 def changeId(id):
     if id == 0:
         return 1
     else:
         return 0
 
+# Mensagem de erro genérica, que fecha a conexão
 def messageClose(socketConnection, message):
     print("{}, fechando a conexão... 😴".format(message))
     socketConnection.close()
 
+# Validação de sincronização no pacote
 def validateSync(decodedTuple):
     sync1 = decodedTuple[0]
     sync2 = decodedTuple[1]
-    print("Validação:", sync1, SYNC_CODE)
-
     if sync1 == sync2 and sync1 == SYNC_CODE:
-        print("✅ Sucesso!")
         return True
     else:
-        print("❗ Falha!")
         return False
 
+# Validação de tamanho do pacote
 def validateLength(decodedTuple, receivedPack):
     tupleLength = decodedTuple[2]
-    print("receivedPack", receivedPack.hex())
-    print("Validação:", tupleLength, len(receivedPack))
     if tupleLength == len(receivedPack):
-        print("✅ Sucesso!")
         return True
     else:
-        print("❗ Falha!")
         return False
 
+# Validação do ID do eco de confirmação
 def validateEcho(currentId, decodedTuple):
     _id = decodedTuple[4]
     flag = decodedTuple[5]
-    print("Validação:", _id, currentId, flag, ACK_CODE)
     if currentId == _id and flag == ACK_CODE:
-        print("✅ Sucesso!")
         return True
     else:
-        print("❗ Falha!")
         return False
 
+# Validação de checkSum
 def validateSum(receivedPack):
     currentSum = calculateCheckSum(receivedPack)
-
-    print("Validação:", currentSum)
     if currentSum == 0:
-        print("✅ Sucesso!")
         return True
     else:
-        print("❗ Falha!")
         return False
 
+# Cálculo de checkSum para um pacote
 def calculateCheckSum(packedMsg):
     hexPackedMsg = packedMsg.hex()
     currSum = 0
@@ -102,19 +100,19 @@ def calculateCheckSum(packedMsg):
             currSum = (int(hex(currSum)[2], 16) + int(hex(currSum)[3:], 16))
     return currSum ^ 0xFFFF
 
+# Criar um novo pacote com o checkSum
 def createChecked(packedMsg):
     unpacked = struct.unpack("!2I2H2Bs", packedMsg)
     checkSum = calculateCheckSum(packedMsg)
     newPack = struct.pack("!2I2H2Bs", unpacked[0], unpacked[1], unpacked[2],
                           checkSum, unpacked[4], unpacked[5], unpacked[6])
-    newUnpacked = struct.unpack("!2I2H2Bs", newPack)
     return newPack
 
+# Inicializar Servidor
 if(PROGRAM == '-s'):
-
     print("❗ Servidor iniciado")
     HOST = 'localhost'
-    PORT  = int(sys.argv[2])
+    PORT = int(sys.argv[2])
     OUTPUT = sys.argv[4]
 
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -140,7 +138,6 @@ if(PROGRAM == '-s'):
         # Decodificando a mensagem em base16
         decodedData = base64.b16decode(data)
         print("⚙ [Mensagem decodificada]:", decodedData)
-        print("type(decodedData):", type(decodedData))
 
         # Unpack para regerar o tuple
         tupleMsg = struct.unpack("!2I2H2Bs", decodedData)
@@ -158,7 +155,6 @@ if(PROGRAM == '-s'):
             packageData = tupleMsg[6]
 
             # Adiciona o dado recebido ao buffer
-            print("type(packageData)", type(packageData))
             dataBuffer += packageData
 
             packedMsg = struct.pack("!2I2H2Bs", SYNC_CODE, SYNC_CODE,
@@ -168,8 +164,7 @@ if(PROGRAM == '-s'):
             codedPack = base64.b16encode(packedMsg)
 
             # Ecoando a mensagem decodificada para o cliente
-            print("📩 Ecoando para o cliente...")
-
+            print("📩 Ecoando pack de confirmação para o cliente...")
             connection.send(codedPack)
         else:
             if not checkSumValid:
@@ -181,17 +176,18 @@ if(PROGRAM == '-s'):
                 messageClose(
                     connection, 'Erro de validação de tamanho de pacote')
             break
-            
-elif(PROGRAM == '-c'):
 
+# Inicializar cliente
+elif(PROGRAM == '-c'):
     print("❗ Cliente iniciado")
     HOST = sys.argv[2]
-    PORT  = int(sys.argv[3])
+    PORT = int(sys.argv[3])
     INPUT = sys.argv[4]
 
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     skt.connect((HOST, PORT))
     print('✅ Conectado com sucesso ao servidor!')
+
     class Frame:
         def __init__(self, sync1, sync2, length, checksum, _id, flags, data):
             self.sync1 = sync1
@@ -202,18 +198,21 @@ elif(PROGRAM == '-c'):
             self.flags = flags
             self.data = data
 
+    print("✅ Arquivo encontrado com sucesso")
     with open(f'{INPUT}.txt') as inputFile:
         inputMsg = inputFile.read()
+    print("✅ Arquivo lido com sucesso")
     inputFile.close()
 
     # Criando uma classe do tipo Frame e instaciando suas variaveis
     frame = Frame(SYNC_CODE, SYNC_CODE, PACK_SIZE,
                   0, 0, 0, inputMsg.encode("UTF-8"))
-
     message = bytearray(frame.data)
 
+    # Enviar um pacote para cada byte da mensagem
     for byte in message:
         byte = byte.to_bytes(1, sys.byteorder)
+        
         # Empacotando a mensagem de acordo com o tamanho de cada quadro
         print("byte:", byte)
         print("type(byte):", type(byte))
