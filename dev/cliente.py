@@ -2,7 +2,6 @@ import socket
 import base64
 import struct
 import sys
-import time
 
 import utils
 

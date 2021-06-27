@@ -2,7 +2,6 @@ import socket
 import base64
 import struct
 import utils
-import time
 
 HOST = 'localhost'
 PORT = 50000
@@ -10,7 +9,6 @@ PORT = 50000
 SYNC_CODE = 0xDCC023C2
 ACK_CODE = 7
 PACK_SIZE = 15
-
 
 print("❗ Programa iniciado!")
 skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

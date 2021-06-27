@@ -2,30 +2,38 @@ import socket
 import base64
 import struct
 import sys
-import time
+
+ARGS = sys.argv
+
+if len(sys.argv) > 1:    
+ PROGRAM = sys.argv[1]
+else:
+ PROGRAM = 'null' 
+
 
 def printInputError(program):
     if program == 1:
-        print("Erro de chamada do cliente")
-        print("[Modelo correto]:", "./dcc023c2 -c 127.0.0.1 <port> <input> <output>")
+        print("❗ Erro de chamada do servidor") 
+        print("[Modelo]:", "./dcc023c2 -s <port> <input> <output>")
     elif program == 2:
-        print("Erro de chamada do servidor") 
-        print("[Modelo correto]:", "./dcc023c2 -s <port> <input> <output>")
+        print("❗ Erro de chamada do cliente")
+        print("[Modelo]:", "./dcc023c2 -c 127.0.0.1 <port> <input> <output>")
     else:
-        print("Erro de chamada do programa") 
-        print("[Modelo correto]:", "./dcc023c2 <-c/-s> ...")
+        print("❗ Erro de chamada genérico") 
+        print("[Modelo]:", "./dcc023c2 <-c/-s> ...")
 
-
-print("sys.argv", sys.argv[:])
-if not sys.argv or sys.argv[1] != "-c" or sys.argv[1] != "-s":
+if (PROGRAM != '-c') and (PROGRAM != '-s'):
     printInputError(0)
-elif sys.argv[1] == "-c":
-    if len(sys.argv) != 5:
+    PROGRAM = 'null'
+elif (PROGRAM == '-s'):
+    if len(ARGS) != 5:
         printInputError(1)
+        PROGRAM = 'null'
 else:
-    if len(sys.argv) != 4:
+    if len(ARGS) != 6:
         printInputError(2)
-
+        PROGRAM = 'null'
+        
 SYNC_CODE = 0xDCC023C2
 PACK_SIZE = 15
 ACK_CODE = 7
@@ -102,9 +110,9 @@ def createChecked(packedMsg):
     newUnpacked = struct.unpack("!2I2H2Bs", newPack)
     return newPack
 
-if(sys.argv[1] == '-s'):
+if(PROGRAM == '-s'):
 
-    print("❗ Servidor iniciado!")
+    print("❗ Servidor iniciado")
     HOST = 'localhost'
     PORT  = int(sys.argv[2])
     OUTPUT = sys.argv[4]
@@ -112,7 +120,7 @@ if(sys.argv[1] == '-s'):
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     skt.bind((HOST, PORT))
     skt.listen()
-    print("❗ Aguardando conexão de um cliente...")
+    print("😴 Aguardando conexão de um cliente...")
 
     connection, address = skt.accept()
     print("✅ Conectado em", address)
@@ -122,11 +130,10 @@ if(sys.argv[1] == '-s'):
         data = connection.recv(1024)
         print("📩 [Mensagem recebida]:", data)
         if not data:
-            messageClose(connection, 'Nenhum dado a mais foi recebido')
-            print("Mensagem foi recebida")
+            messageClose(connection, '❗ Mensagem chegou ao fim')
             outputFile = open(f'{OUTPUT}.txt', "w")
             outputFile.write(dataBuffer.decode("UTF-8"))
-            print("Arquivo foi escrito!")
+            print("✅ Arquivo de output foi atualizado")
             outputFile.close()
             break
 
@@ -175,9 +182,9 @@ if(sys.argv[1] == '-s'):
                     connection, 'Erro de validação de tamanho de pacote')
             break
             
-elif(sys.argv[1] == '-c'):
+elif(PROGRAM == '-c'):
 
-    print("❗ Cliente iniciado!")
+    print("❗ Cliente iniciado")
     HOST = sys.argv[2]
     PORT  = int(sys.argv[3])
     INPUT = sys.argv[4]
@@ -185,8 +192,6 @@ elif(sys.argv[1] == '-c'):
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     skt.connect((HOST, PORT))
     print('✅ Conectado com sucesso ao servidor!')
-
-
     class Frame:
         def __init__(self, sync1, sync2, length, checksum, _id, flags, data):
             self.sync1 = sync1
@@ -201,16 +206,9 @@ elif(sys.argv[1] == '-c'):
         inputMsg = inputFile.read()
     inputFile.close()
 
-    # inputMsg = input("❗ Digite uma mensagem: ")
-    print("inputMsg:", inputMsg)
-    # print("type(inputMsg):", type(inputMsg))
-
     # Criando uma classe do tipo Frame e instaciando suas variaveis
     frame = Frame(SYNC_CODE, SYNC_CODE, PACK_SIZE,
                   0, 0, 0, inputMsg.encode("UTF-8"))
-
-    print("frame.data:", frame.data)
-    print("type(frame.data):", type(frame.data))
 
     message = bytearray(frame.data)
 
@@ -276,4 +274,4 @@ elif(sys.argv[1] == '-c'):
     messageClose(skt, "Operação realizada com sucesso")
 
 else:
-    printInputError(0)
+    print("Finalizando programa... 😴")
