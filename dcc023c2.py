@@ -126,22 +126,22 @@ if(PROGRAM == '-s'):
     dataBuffer = bytearray()
     while True:
         data = connection.recv(1024)
-        print("📩 [Mensagem recebida]:", data)
+        # print("📩 [Mensagem recebida]:", data)
         if not data:
             messageClose(connection, '❗ Mensagem chegou ao fim')
-            outputFile = open(f'{OUTPUT}.txt', "w")
-            outputFile.write(dataBuffer.decode("UTF-8"))
+            outputFile = open(f'{OUTPUT}', "wb")
+            outputFile.write(dataBuffer)
             print("✅ Arquivo de output foi atualizado")
             outputFile.close()
             break
 
         # Decodificando a mensagem em base16
         decodedData = base64.b16decode(data)
-        print("⚙ [Mensagem decodificada]:", decodedData)
+        # print("⚙ [Mensagem decodificada]:", decodedData)
 
         # Unpack para regerar o tuple
         tupleMsg = struct.unpack("!2I2H2Bs", decodedData)
-        print("⚙ [Mensagem desempacotada]:", tupleMsg)
+        # print("⚙ [Mensagem desempacotada]:", tupleMsg)
 
         # Validação de sincronização
         syncValid = validateSync(tupleMsg)
@@ -164,7 +164,7 @@ if(PROGRAM == '-s'):
             codedPack = base64.b16encode(packedMsg)
 
             # Ecoando a mensagem decodificada para o cliente
-            print("📩 Ecoando pack de confirmação para o cliente...")
+            # print("📩 Ecoando pack de confirmação para o cliente...")
             connection.send(codedPack)
         else:
             if not checkSumValid:
@@ -183,7 +183,9 @@ elif(PROGRAM == '-c'):
     HOST = sys.argv[2]
     PORT = int(sys.argv[3])
     INPUT = sys.argv[4]
-
+    
+    
+    print("🤔 Buscando conexão com o servidor...")
     skt = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     skt.connect((HOST, PORT))
     print('✅ Conectado com sucesso ao servidor!')
@@ -199,14 +201,14 @@ elif(PROGRAM == '-c'):
             self.data = data
 
     print("✅ Arquivo encontrado com sucesso")
-    with open(f'{INPUT}.txt') as inputFile:
+    with open(f'{INPUT}', "rb") as inputFile:
         inputMsg = inputFile.read()
     print("✅ Arquivo lido com sucesso")
     inputFile.close()
 
     # Criando uma classe do tipo Frame e instaciando suas variaveis
     frame = Frame(SYNC_CODE, SYNC_CODE, PACK_SIZE,
-                  0, 0, 0, inputMsg.encode("UTF-8"))
+                  0, 0, 0, inputMsg)
     message = bytearray(frame.data)
 
     # Enviar um pacote para cada byte da mensagem
@@ -214,18 +216,16 @@ elif(PROGRAM == '-c'):
         byte = byte.to_bytes(1, sys.byteorder)
         
         # Empacotando a mensagem de acordo com o tamanho de cada quadro
-        print("byte:", byte)
-        print("type(byte):", type(byte))
         packedMsg = struct.pack("!2I2H2Bs", frame.sync1, frame.sync2,
                                 frame.length, frame.checksum, frame._id, frame.flags, byte)
-        print("⚙ [Mensagem empacotada]:", packedMsg)
+        # print("⚙ [Mensagem empacotada]:", packedMsg)
 
         checkedMsg = createChecked(packedMsg)
-        print("⚙ [Mensagem com checksum]:", checkedMsg)
+        # print("⚙ [Mensagem com checksum]:", checkedMsg)
 
         # Codificando o enquadramento para base16
         codedPack = base64.b16encode(checkedMsg)
-        print("⚙ [Mensagem enquadrada]:", codedPack)
+        # print("⚙ [Mensagem enquadrada]:", codedPack)
 
         # Enviando mensagem codificada para o servidor
         skt.send(codedPack)
@@ -240,15 +240,15 @@ elif(PROGRAM == '-c'):
                 skt.send(codedPack)
 
         # Recebendo um eco do servidor
-        print('💌 [Mensagem ecoada]:', serverEcho)
+        # print('💌 [Mensagem ecoada]:', serverEcho)
 
         # Decodificando eco do servidor
         decodedServerEcho = base64.b16decode(serverEcho)
-        print('💌 [Eco decodificado]:', decodedServerEcho)
+        # print('💌 [Eco decodificado]:', decodedServerEcho)
 
         # Unpack do eco do servidor
         tupleEcho = struct.unpack("!2I2H2Bs", decodedServerEcho)
-        print("⚙ [Eco desempacotado]:", tupleEcho)
+        # print("⚙ [Eco desempacotado]:", tupleEcho)
 
         # Validação de sincronização do eco do servidor
         syncEchoValid = validateSync(tupleEcho)
